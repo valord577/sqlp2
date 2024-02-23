@@ -1,0 +1,51 @@
+{{define "sampleCreate" -}}
+create table `student`
+(
+  `name`  varchar(16) not null,
+  `class` int         not null
+);
+{{end}}
+
+{{define "sampleInsertBatch" -}}
+INSERT INTO `student`
+(`name`, `class`)
+VALUES
+  {{ $n := len . }}
+  {{range $i, $e := .}}
+    (#{@{{$i}}.name},#{@{{$i}}.class}){{if ne $n (plus 1 $i)}}, {{end}}
+  {{end}}
+{{end}}
+
+{{define "sampleInsertOne" -}}
+INSERT INTO `student`
+(
+  {{ $fields := "" }}
+    {{if (ne nil (index . "name"))}}  {{ $fields = (join " " $fields "`name`,") }}  {{end}}
+    {{if (ne nil (index . "class"))}} {{ $fields = (join " " $fields "`class`,") }} {{end}}
+  {{ $fields = (trim $fields ',') }}
+  {{ $fields }}
+)
+VALUES
+(
+  {{ $values := "" }}
+    {{if (ne nil (index . "name"))}}  {{ $values = (join " " $values "#{name},") }}  {{end}}
+    {{if (ne nil (index . "class"))}} {{ $values = (join " " $values "#{class},") }} {{end}}
+  {{ $values = (trim $values ',') }}
+  {{ $values }}
+)
+{{end}}
+
+{{define "sampleSelect" -}}
+SELECT *
+FROM `student`
+WHERE 1=1
+  {{if (ne nil (index . "class"))}}AND `class` = #{class}{{end}}
+{{end}}
+
+{{define "sampleUpdate" -}}
+UPDATE `student`
+SET
+  {{if (ne nil (index . "class"))}}`class` = #{class}, {{end}}
+  `name` = #{name}
+WHERE `name` = #{name}
+{{end}}
