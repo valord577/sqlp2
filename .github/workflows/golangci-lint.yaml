@@ -6,11 +6,13 @@ on:
       - '**.go'
       - 'go.mod'
       - '.golangci.yml'
+      - '.github/workflows/golangci-lint.yaml'
   pull_request:
     paths:
       - '**.go'
       - 'go.mod'
       - '.golangci.yml'
+      - '.github/workflows/golangci-lint.yaml'
 
 jobs:
   golangci:
