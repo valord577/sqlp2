@@ -6,7 +6,7 @@ Sqlp2
 [![License](https://img.shields.io/github/license/valord577/sqlp2)](LICENSE)
 [![Codecov](https://codecov.io/gh/valord577/sqlp2/graph/badge.svg?token=NT8U50QNIC)](https://codecov.io/gh/valord577/sqlp2)
 [![Go compat](https://img.shields.io/github/go-mod/go-version/valord577/sqlp2?label=compatibility)](#)
-[![Go module](https://badge.fury.io/go/github.com%2Fvalord577%sqlp2.svg)](https://badge.fury.io/go/github.com%2Fvalord577%sqlp2)
+[![Go module](https://badge.fury.io/go/github.com%2Fvalord577%2Fsqlp2.svg)](https://badge.fury.io/go/github.com%2Fvalord577%2Fsqlp2)
 
 Features
 ------
