@@ -11,8 +11,11 @@ import (
 
 type sqlmode uint8
 
+// SqlMode is an identifier that
+// determines in what way the template is replaced
+// before the SQL is executed.
 const (
-	SqlModeNormal = iota
+	SqlModeNormal sqlmode = iota
 	SqlModeBatch
 )
 
@@ -28,16 +31,20 @@ type executor struct {
 	ctx  context.Context
 }
 
+// At sets the implementation of sqlpoint,
+// which may be *sql.DB, *sql.Conn or *sql.TX.
 func (e *executor) At(p sqlpoint) *executor {
 	e.p = p
 	return e
 }
 
+// Ctx sets context.Context for sqlpoint.
 func (e *executor) Ctx(ctx context.Context) *executor {
 	e.ctx = ctx
 	return e
 }
 
+// Parse parses into SQL statements (strings), and provides placeholder arguments.
 func (e *executor) Parse(mode sqlmode, args ...map[string]any) (sqls string, placeholder []any, err error) {
 	var data any
 	data = args
@@ -116,9 +123,11 @@ func (e *executor) check() (err error) {
 	return
 }
 
+// Exec executes a query with args that doesn't return rows.
 func (e *executor) Exec(args ...map[string]any) (sql.Result, error) {
 	return e.exec(SqlModeNormal, args...)
 }
+// ExecBatch executes a query with the array of args that doesn't return rows.
 func (e *executor) ExecBatch(args ...map[string]any) (sql.Result, error) {
 	return e.exec(SqlModeBatch, args...)
 }
@@ -134,6 +143,7 @@ func (e *executor) exec(mode sqlmode, args ...map[string]any) (sql.Result, error
 	return e.p.ExecContext(e.ctx, sqls, placeholder...)
 }
 
+// Query executes a query that returns rows, typically a SELECT.
 func (e *executor) Query(args ...map[string]any) (*sql.Rows, error) {
 	if err := e.check(); err != nil {
 		return nil, err
@@ -146,6 +156,7 @@ func (e *executor) Query(args ...map[string]any) (*sql.Rows, error) {
 	return e.p.QueryContext(e.ctx, sqls, placeholder...)
 }
 
+// Scan executes a query that returns rows, and maps to dest.
 func (e *executor) Scan(dest any, args ...map[string]any) error {
 	rs, err := e.Query(args...)
 	if err != nil {
