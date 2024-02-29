@@ -2,6 +2,12 @@
 
 All notable changes to **sqlp2** are documented in this file.
 
+## v1.1.20240229
+
+#### Changed
+
+- Smart `Scan` when given one or more args.
+
 ## v1.0.20240226
 
 #### Added

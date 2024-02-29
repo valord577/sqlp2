@@ -127,10 +127,12 @@ func (e *executor) check() (err error) {
 func (e *executor) Exec(args ...map[string]any) (sql.Result, error) {
 	return e.exec(SqlModeNormal, args...)
 }
+
 // ExecBatch executes a query with the array of args that doesn't return rows.
 func (e *executor) ExecBatch(args ...map[string]any) (sql.Result, error) {
 	return e.exec(SqlModeBatch, args...)
 }
+
 func (e *executor) exec(mode sqlmode, args ...map[string]any) (sql.Result, error) {
 	if err := e.check(); err != nil {
 		return nil, err
@@ -143,13 +145,22 @@ func (e *executor) exec(mode sqlmode, args ...map[string]any) (sql.Result, error
 	return e.p.ExecContext(e.ctx, sqls, placeholder...)
 }
 
-// Query executes a query that returns rows, typically a SELECT.
+// Query executes a query with args that returns rows, typically a SELECT.
 func (e *executor) Query(args ...map[string]any) (*sql.Rows, error) {
+	return e.query(SqlModeNormal, args...)
+}
+
+// QueryBatch executes a query with the array of args that returns rows, typically a SELECT.
+func (e *executor) QueryBatch(args ...map[string]any) (*sql.Rows, error) {
+	return e.query(SqlModeBatch, args...)
+}
+
+func (e *executor) query(mode sqlmode, args ...map[string]any) (*sql.Rows, error) {
 	if err := e.check(); err != nil {
 		return nil, err
 	}
 
-	sqls, placeholder, err := e.Parse(SqlModeNormal, args...)
+	sqls, placeholder, err := e.Parse(mode, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +169,14 @@ func (e *executor) Query(args ...map[string]any) (*sql.Rows, error) {
 
 // Scan executes a query that returns rows, and maps to dest.
 func (e *executor) Scan(dest any, args ...map[string]any) error {
-	rs, err := e.Query(args...)
+	var query func(...map[string]any) (*sql.Rows, error)
+	if len(args) > 1 {
+		query = e.QueryBatch
+	} else {
+		query = e.Query
+	}
+
+	rs, err := query(args...)
 	if err != nil {
 		return err
 	}

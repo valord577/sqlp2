@@ -3,14 +3,10 @@ package sqlp
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"io"
-	"io/fs"
 	"os"
 	"strings"
 	"testing"
 	"text/template"
-	"time"
 )
 
 var data0 = map[string]any{
@@ -57,12 +53,6 @@ VALUES
 {{end}}
 `
 
-type fakeFsys string
-
-func (fakeFsys) Open(string) (fs.File, error) {
-	return &openFile{f: &file{name: name, data: tmpl}}, nil
-}
-
 func TestMain(m *testing.M) {
 	parseFile = func(t *template.Template, _ string) (*template.Template, error) {
 		return t.Parse(tmpl)
@@ -94,7 +84,7 @@ func TestMapper(t *testing.T) {
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
-	m1, err := ParseFS(fakeFsys(""), name)
+	m1, err := ParseFile(name)
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
@@ -129,7 +119,7 @@ func (fakeSqlpoint) QueryContext(context.Context, string, ...any) (*sql.Rows, er
 }
 
 func TestErrExecutor(t *testing.T) {
-	m, err := ParseFS(fakeFsys(""), name)
+	m, err := ParseFile(name)
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
@@ -139,7 +129,7 @@ func TestErrExecutor(t *testing.T) {
 }
 
 func TestExec(t *testing.T) {
-	m, err := ParseFS(fakeFsys(""), name)
+	m, err := ParseFile(name)
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
@@ -149,7 +139,7 @@ func TestExec(t *testing.T) {
 }
 
 func TestExecBatch(t *testing.T) {
-	m, err := ParseFS(fakeFsys(""), name)
+	m, err := ParseFile(name)
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
@@ -159,111 +149,11 @@ func TestExecBatch(t *testing.T) {
 }
 
 func TestScan(t *testing.T) {
-	m, err := ParseFS(fakeFsys(""), name)
+	m, err := ParseFile(name)
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
 	if err = m.Use("sample1").At(fakeSqlpoint("")).Scan(nil, data0); err != nil {
 		t.Errorf("%s", err.Error())
 	}
-}
-
-// split splits the name into dir and elem as described in the
-// comment in the FS struct above. isDir reports whether the
-// final trailing slash was present, indicating that name is a directory.
-func split(name string) (dir, elem string, isDir bool) {
-	if name[len(name)-1] == '/' {
-		isDir = true
-		name = name[:len(name)-1]
-	}
-	i := len(name) - 1
-	for i >= 0 && name[i] != '/' {
-		i--
-	}
-	if i < 0 {
-		return ".", name, isDir
-	}
-	return name[:i], name[i+1:], isDir
-}
-
-// A file is a single file in the FS.
-// It implements fs.FileInfo and fs.DirEntry.
-type file struct {
-	// The compiler knows the layout of this struct.
-	// See cmd/compile/internal/staticdata's WriteEmbed.
-	name string
-	data string
-}
-
-func (f *file) Name() string               { _, elem, _ := split(f.name); return elem }
-func (f *file) Size() int64                { return int64(len(f.data)) }
-func (f *file) ModTime() time.Time         { return time.Time{} }
-func (f *file) IsDir() bool                { _, _, isDir := split(f.name); return isDir }
-func (f *file) Sys() any                   { return nil }
-func (f *file) Type() fs.FileMode          { return f.Mode().Type() }
-func (f *file) Info() (fs.FileInfo, error) { return f, nil }
-
-func (f *file) Mode() fs.FileMode {
-	if f.IsDir() {
-		return fs.ModeDir | 0555
-	}
-	return 0444
-}
-
-func (f *file) String() string {
-	return fs.FormatFileInfo(f)
-}
-
-// An openFile is a regular file open for reading.
-type openFile struct {
-	f      *file // the file itself
-	offset int64 // current read offset
-}
-
-func (f *openFile) Close() error               { return nil }
-func (f *openFile) Stat() (fs.FileInfo, error) { return f.f, nil }
-
-func (f *openFile) Read(b []byte) (int, error) {
-	if f.offset >= int64(len(f.f.data)) {
-		return 0, io.EOF
-	}
-	if f.offset < 0 {
-		return 0, &fs.PathError{Op: "read", Path: f.f.name, Err: fs.ErrInvalid}
-	}
-	n := copy(b, f.f.data[f.offset:])
-	f.offset += int64(n)
-	return n, nil
-}
-
-// An openDir is a directory open for reading.
-type openDir struct {
-	f      *file  // the directory file itself
-	files  []file // the directory contents
-	offset int    // the read offset, an index into the files slice
-}
-
-func (d *openDir) Close() error               { return nil }
-func (d *openDir) Stat() (fs.FileInfo, error) { return d.f, nil }
-
-func (d *openDir) Read([]byte) (int, error) {
-	return 0, &fs.PathError{Op: "read", Path: d.f.name, Err: errors.New("is a directory")}
-}
-
-func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
-	n := len(d.files) - d.offset
-	if n == 0 {
-		if count <= 0 {
-			return nil, nil
-		}
-		return nil, io.EOF
-	}
-	if count > 0 && n > count {
-		n = count
-	}
-	list := make([]fs.DirEntry, n)
-	for i := range list {
-		list[i] = &d.files[d.offset+i]
-	}
-	d.offset += n
-	return list, nil
 }
