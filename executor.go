@@ -124,8 +124,8 @@ func (e *executor) check() (err error) {
 }
 
 // Exec executes a query with args that doesn't return rows.
-func (e *executor) Exec(args ...map[string]any) (sql.Result, error) {
-	return e.exec(SqlModeNormal, args...)
+func (e *executor) Exec(args map[string]any) (sql.Result, error) {
+	return e.exec(SqlModeNormal, args)
 }
 
 // ExecBatch executes a query with the array of args that doesn't return rows.
@@ -146,8 +146,8 @@ func (e *executor) exec(mode sqlmode, args ...map[string]any) (sql.Result, error
 }
 
 // Query executes a query with args that returns rows, typically a SELECT.
-func (e *executor) Query(args ...map[string]any) (*sql.Rows, error) {
-	return e.query(SqlModeNormal, args...)
+func (e *executor) Query(args map[string]any) (*sql.Rows, error) {
+	return e.query(SqlModeNormal, args)
 }
 
 // QueryBatch executes a query with the array of args that returns rows, typically a SELECT.
@@ -167,26 +167,31 @@ func (e *executor) query(mode sqlmode, args ...map[string]any) (*sql.Rows, error
 	return e.p.QueryContext(e.ctx, sqls, placeholder...)
 }
 
-// Scan executes a query that returns rows, and maps to dest.
-func (e *executor) Scan(dest any, args ...map[string]any) error {
-	var query func(...map[string]any) (*sql.Rows, error)
-	if len(args) > 1 {
-		query = e.QueryBatch
-	} else {
-		query = e.Query
-	}
-
-	rs, err := query(args...)
+// Scan executes a query with args that returns rows, and maps to dest.
+func (e *executor) Scan(dest any, args map[string]any) error {
+	rs, err := e.Query(args)
 	if err != nil {
 		return err
 	}
+	return e.scan(dest, rs)
+}
+
+// Scan executes a query with the array of args that returns rows, and maps to dest.
+func (e *executor) ScanBatch(dest any, args ...map[string]any) error {
+	rs, err := e.QueryBatch(args...)
+	if err != nil {
+		return err
+	}
+	return e.scan(dest, rs)
+}
+
+func (e *executor) scan(dest any, rs *sql.Rows) error {
 	// if something happens here, we want to make sure the rows are Closed
 	defer func() {
 		if rs != nil {
 			_ = rs.Close()
 		}
 	}()
-
 	return scanAny(dest, rs)
 }
 
